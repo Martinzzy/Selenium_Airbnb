@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
+#author:zzy
+#data:2018/3/21,14:42
+#Version:Python 3.6
 import time
 import pymongo
 from pyquery import PyQuery as pq
@@ -16,7 +21,7 @@ client = pymongo.MongoClient('localhost')
 db = client['Airbnb']
 
 #访问主页，按要求搜索
-def search(place,start,end):
+def search(place,start,page,end):
     try:
         browser.get('https://zh.airbnb.com/')
         city = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR,'#GeocompleteController-via-SearchBarLarge')))
@@ -28,25 +33,26 @@ def search(place,start,end):
         enddata.send_keys(end)
         button.click()
         time.sleep(5)
-        parse_page()
+        parse_page(page)
     except TimeoutError:
         print('请求失败')
         return search()
 
 #翻页
-def next_page():
+def next_page(page):
     try:
         page = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#site-content > div > div > div._fk6lr88 > div > div > div > div > div:nth-child(4) > div._12to336 > div:nth-child(1) > nav > span > div > ul > li._b8vexar > a > div')))
         page.click()
         time.sleep(5)
-        parse_page()
+        parse_page(page)
     except TimeoutError:
         print('翻页失败')
         return next_page()
 
 #使用pyquery分析网页信息
-def parse_page():
+def parse_page(page):
     try:
+        print('正在爬取第{}页'.format(page))
         html = browser.page_source
         doc = pq(html)
         items = doc('._fhph4u ._1mpo9ida').items()
@@ -63,7 +69,7 @@ def parse_page():
             }
             save_to_mongo(data)
     except WebDriverException:
-        return parse_page()
+        return parse_page(page)
 
 #存储到数据库MongoDB
 def save_to_mongo(data):
@@ -75,16 +81,17 @@ def save_to_mongo(data):
 
 def main():
     page = 1
-    city = '南京'
-    start = '3月22日'
-    end = '3月23日'
-    search(city,start,end)
+    city = '城市，可以输入你想去的城市'
+    start = '入住的时间，时间的格式：3月22日'
+    end = '结束的时间，时间格式：3月23日'
+    search(city,start,page,end)
     while page<17:
-        print('正在爬取第{}页'.format(page))
-        next_page()
+        next_page(page)
         page+=1
         time.sleep(5)
 
 
 if __name__ == '__main__':
     main()
+
+
